@@ -32,7 +32,6 @@ class PaiementController extends Controller
             'facture_id' => 'required|exists:factures,id',
             'montant'    => 'required|numeric|min:1',
         ]);
-
         $facture = Facture::where('id', $request->facture_id)
                           ->where('user_id', Auth::id())
                           ->firstOrFail();

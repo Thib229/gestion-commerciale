@@ -126,8 +126,8 @@
                         {{ $stat->total }},
                     @endforeach
                 ],
-                backgroundColor: 'rgba(34, 197, 94, 0.5)', // vert tailwind 500 semi-transparent
-                borderColor: 'rgba(34, 197, 94, 1)', // vert tailwind 500
+                backgroundColor: 'rgba(34, 197, 94, 0.5)',
+                borderColor: 'rgba(34, 197, 94, 1)', 
                 borderWidth: 1
             }]
         };
