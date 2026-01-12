@@ -9,7 +9,7 @@ class Client extends Model
 {
     use HasFactory;
 
-    // 🔧 Ajoute 'user_id' pour que Laravel puisse l'insérer lors du store()
+    // Ajoute 'user_id' pour que Laravel puisse l'insérer lors du store()
     protected $fillable = ['nom', 'email', 'telephone', 'adresse', 'user_id'];
 
     // 🔁 Un client appartient à un utilisateur
@@ -24,3 +24,4 @@ class Client extends Model
         return $this->hasMany(Facture::class);
     }
 }
+
