@@ -24,24 +24,29 @@ class DashboardController extends Controller
         })->sum('montant');
         $chiffreAffaires = Facture::where('user_id', $userId)->sum('total');
 
-        $produitsPopulaires = Produit::withCount(['factures' => function ($query) use ($userId) {
-            $query->where('user_id', $userId);
-        }])
-        ->where('user_id', $userId)
-        ->orderByDesc('factures_count')
-        ->take(5)
-        ->get();
+        $produitsPopulaires = collect();
+        $stats = collect();
 
-        $stats = Facture::where('user_id', $userId)
-            ->select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('YEAR(created_at) as year'),
-                DB::raw('SUM(total) as total')
-            )
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'asc')
-            ->orderBy('month', 'asc')
+        if (Auth::user()->canViewStatistics()) {
+            $produitsPopulaires = Produit::withCount(['factures' => function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            }])
+            ->where('user_id', $userId)
+            ->orderByDesc('factures_count')
+            ->take(5)
             ->get();
+
+            $stats = Facture::where('user_id', $userId)
+                ->select(
+                    DB::raw('MONTH(created_at) as month'),
+                    DB::raw('YEAR(created_at) as year'),
+                    DB::raw('SUM(total) as total')
+                )
+                ->groupBy('year', 'month')
+                ->orderBy('year', 'asc')
+                ->orderBy('month', 'asc')
+                ->get();
+        }
 
         return view('dashboard', compact(
             'nbClients',
@@ -50,7 +55,7 @@ class DashboardController extends Controller
             'totalPaiements',
             'chiffreAffaires',
             'produitsPopulaires',
-            'stats'
+            'stats',
         ));
     }
 }

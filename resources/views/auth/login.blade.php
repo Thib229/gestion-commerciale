@@ -2,6 +2,12 @@
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
+    @if(session('status'))
+        <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded text-sm">
+            {{ session('status') }}
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
@@ -42,6 +48,13 @@
             <x-primary-button class="ms-3">
                 {{ __('Connectez-vous') }}
             </x-primary-button>
+        </div>
+
+        <div class="mt-4 text-center text-sm text-gray-600">
+            Pas encore de compte ?
+            <a href="{{ route('register') }}" class="underline text-indigo-600 hover:text-indigo-900">
+                Créer un compte
+            </a>
         </div>
     </form>
 </x-guest-layout>

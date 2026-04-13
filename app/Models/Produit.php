@@ -22,4 +22,10 @@ class Produit extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // Scope de recherche par nom
+    public function scopeSearch($query, string $term)
+    {
+        return $query->where('nom', 'like', '%' . $term . '%');
+    }
 }

@@ -14,3 +14,10 @@ services:
         generateValue: true
       - key: APP_DEBUG
         value: false
+
+  - type: cron
+    name: subscription-reminders
+    env: php
+    schedule: "0 8 * * *"  # Tous les jours à 8h
+    buildCommand: composer install --no-dev
+    startCommand: php artisan subscriptions:remind

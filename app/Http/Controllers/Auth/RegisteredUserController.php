@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Subscription;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
@@ -36,15 +36,27 @@ class RegisteredUserController extends Controller
         ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name'                => $request->name,
+            'email'               => $request->email,
+            'password'            => Hash::make($request->password),
+            'trial_started_at'    => now(),
+            'subscription_status' => 'trial',
+        ]);
+
+        // Création automatique de l'essai gratuit (7 jours)
+        Subscription::create([
+            'user_id'   => $user->id,
+            'plan_id'   => null,
+            'is_trial'  => true,
+            'is_active' => true,
+            'starts_at' => now(),
+            'ends_at'   => now()->addDays(7),
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        // Ne pas connecter automatiquement → rediriger vers login
+        return redirect()->route('login')
+            ->with('status', 'Compte créé avec succès. Connectez-vous pour accéder à votre espace.');
     }
 }

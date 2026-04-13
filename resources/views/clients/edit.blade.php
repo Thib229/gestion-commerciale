@@ -22,23 +22,23 @@
             @method('PUT')
 
             <div>
-                <label for="nom" class="block text-sm font-medium text-gray-700">Nom</label>
+                <label for="nom" class="block text-sm font-medium text-gray-700">Nom complet*</label>
                 <input type="text" name="nom" id="nom" value="{{ old('nom', $client->nom) }}"
-                    class="w-full border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2"
+                    class="w-full border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2" placeholder="Entrez le nom complet du client"
                     required>
             </div>
 
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email*</label>
                 <input type="email" name="email" id="email" value="{{ old('email', $client->email) }}"
-                    class="w-full border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2"
+                    class="w-full border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2" placeholder="Entrez son email"
                     required>
             </div>
 
             <div>
-                <label for="telephone" class="block text-sm font-medium text-gray-700">Téléphone</label>
+                <label for="telephone" class="block text-sm font-medium text-gray-700">Téléphone*</label>
                 <input type="text" name="telephone" id="telephone" value="{{ old('telephone', $client->telephone) }}"
-                    class="w-full border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2"
+                    class="w-full border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-2" placeholder="Entrez son numéro de téléphone"
                     required>
             </div>
 

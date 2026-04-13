@@ -9,8 +9,14 @@ class ProduitController extends Controller
 {
     public function index()
     {
-        $produits = Produit::where('user_id', auth()->id())->get();
-        return view('produits.index', compact('produits'));
+        $search = request('search');
+
+        $produits = Produit::where('user_id', auth()->id())
+            ->when($search, fn ($q) => $q->search($search))
+            ->orderBy('nom')
+            ->paginate(15)
+            ->withQueryString();
+        return view('produits.index', compact('produits', 'search'));
     }
 
     public function create()

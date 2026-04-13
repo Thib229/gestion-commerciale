@@ -14,6 +14,21 @@
             Ajouter un produit
         </a>
 
+        <!-- Formulaire de recherche -->
+        <form method="GET" action="{{ route('produits.index') }}" class="mb-4 flex gap-2 items-center">
+            <input type="text" name="search" value="{{ $search ?? '' }}"
+                   placeholder="Rechercher par nom..."
+                   class="border border-gray-300 rounded px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-300">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                Rechercher
+            </button>
+            @if(!empty($search))
+                <a href="{{ route('produits.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">
+                    Réinitialiser
+                </a>
+            @endif
+        </form>
+
         <table class="min-w-full bg-white border rounded shadow">
             <thead>
                 <tr>
@@ -46,5 +61,9 @@
                 @endforelse
             </tbody>
         </table>
+
+        <div class="mt-4">
+            {{ $produits->links() }}
+        </div>
     </div>
 </x-app-layout>

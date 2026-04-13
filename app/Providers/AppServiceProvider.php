@@ -2,25 +2,28 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
+use App\Models\Facture;
+use App\Models\Paiement;
+use App\Models\Produit;
+use App\Observers\ClientObserver;
+use App\Observers\FactureObserver;
+use App\Observers\PaiementObserver;
+use App\Observers\ProduitObserver;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Schema; // <-- Ajoute cette ligne
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Fixe la longueur par défaut des chaînes pour éviter l'erreur de clé trop longue MySQL
         Schema::defaultStringLength(191);
+
+        Facture::observe(FactureObserver::class);
+        Paiement::observe(PaiementObserver::class);
+        Client::observe(ClientObserver::class);
+        Produit::observe(ProduitObserver::class);
     }
 }

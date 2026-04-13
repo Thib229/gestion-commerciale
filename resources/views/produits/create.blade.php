@@ -19,17 +19,17 @@
 
             <div class="mb-4">
                 <label for="nom" class="block font-medium text-gray-700">Nom</label>
-                <input type="text" name="nom" id="nom" value="{{ old('nom') }}" required class="mt-1 block w-full border rounded px-3 py-2" />
+                <input type="text" name="nom" id="nom" value="{{ old('nom') }}" placeholder="Entrez le nom du produit" required class="mt-1 block w-full border rounded px-3 py-2" />
             </div>
 
             <div class="mb-4">
                 <label for="prix_unitaire" class="block font-medium text-gray-700">Prix Unitaire (F)</label>
-                <input type="number" step="0.01" name="prix_unitaire" id="prix_unitaire" value="{{ old('prix_unitaire') }}" required class="mt-1 block w-full border rounded px-3 py-2" />
+                <input type="number" step="0.01" name="prix_unitaire" id="prix_unitaire" value="{{ old('prix_unitaire') }}" placeholder="Entrez le prix unitaire" required class="mt-1 block w-full border rounded px-3 py-2" />
             </div>
 
             <div class="mb-4">
                 <label for="stock" class="block font-medium text-gray-700">Stock</label>
-                <input type="number" name="stock" id="stock" value="{{ old('stock') }}" required class="mt-1 block w-full border rounded px-3 py-2" />
+                <input type="number" name="stock" id="stock" value="{{ old('stock') }}" placeholder="Entrez le stock disponible" required class="mt-1 block w-full border rounded px-3 py-2" />
             </div>
 
             <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Ajouter</button>

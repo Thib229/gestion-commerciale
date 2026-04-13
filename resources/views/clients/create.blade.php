@@ -19,18 +19,18 @@
             @csrf
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Nom</label>
-                <input type="text" name="nom" class="w-full border-gray-300 rounded p-2" required>
+                <label class="block text-sm font-medium text-gray-700">Nom complet*</label> 
+                <input type="text" name="nom" class="w-full border-gray-300 rounded p-2" placeholder="Entrez le nom complet du client" required>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" name="email" class="w-full border-gray-300 rounded p-2" required>
+                <label class="block text-sm font-medium text-gray-700">Email*</label> 
+                <input type="email" name="email" class="w-full border-gray-300 rounded p-2" placeholder="Entrez son email" required>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Téléphone</label>
-                <input type="text" name="telephone" class="w-full border-gray-300 rounded p-2" required>
+                <label class="block text-sm font-medium text-gray-700">Téléphone*</label> 
+                <input type="text" name="telephone" class="w-full border-gray-300 rounded p-2" placeholder="Entrez son numéro de téléphone" required>
             </div>
 
             <div class="flex justify-between pt-4">

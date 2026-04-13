@@ -71,15 +71,29 @@
             <p><strong>Montant payé :</strong> {{ number_format($facture->montant_paye, 0, ',', ' ') }} F</p>
             <p><strong>Reste à payer :</strong> <span class="text-red-600 font-semibold">{{ number_format($facture->reste_a_regler, 0, ',', ' ') }} F</span></p>
 
-            <div class="pt-6">
+            <div class="pt-6 flex items-center gap-4 flex-wrap">
                 <a href="{{ route('factures.index') }}" class="text-blue-600 hover:underline">&larr; Retour à la liste</a>
+
+                @if(Auth::user()->canExportPdf())
+                    <a href="{{ route('factures.exportPdf', $facture->id) }}"
+                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow">
+                        📄 Exporter en PDF
+                    </a>
+                @else
+                    <span class="text-sm text-gray-400 italic" title="Disponible à partir du plan Pro">
+                        📄 Export PDF (plan Pro requis)
+                    </span>
+                @endif
+
+                @if($facture->public_token)
+                    <button
+                        onclick="navigator.clipboard.writeText('{{ route('factures.public', $facture->public_token) }}').then(() => { this.textContent = '✅ Lien copié !'; setTimeout(() => { this.textContent = '🔗 Copier le lien public'; }, 2000); })"
+                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded shadow text-sm border border-gray-300">
+                        🔗 Copier le lien public
+                    </button>
+                @endif
             </div>
         </div>
     </div>
-
-    <a href="{{ route('factures.exportPdf', $facture->id) }}"
-        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow">
-        📄 Exporter en PDF
-    </a>
 
 </x-app-layout>

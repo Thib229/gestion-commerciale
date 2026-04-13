@@ -13,12 +13,21 @@ class FactureController extends Controller
 {
     public function index()
     {
+        $search = request('search');
+        $dateFrom = request('date_from');
+        $dateTo = request('date_to');
+        $statut = request('statut');
+
         $factures = Facture::with('client')
             ->where('user_id', Auth::id())
+            ->when($search, fn ($q) => $q->filterClient($search))
+            ->when($dateFrom || $dateTo, fn ($q) => $q->filterDateRange($dateFrom, $dateTo))
+            ->when($statut, fn ($q) => $q->filterStatut($statut))
             ->orderBy('date', 'desc')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('factures.index', compact('factures'));
+        return view('factures.index', compact('factures', 'search', 'dateFrom', 'dateTo', 'statut'));
     }
 
     public function create()
@@ -32,11 +41,16 @@ class FactureController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'produits' => 'required|array',
-            'produits.*.id' => 'required|exists:produits,id',
-            'produits.*.quantite' => 'required|integer|min:1',
+            'client_id'           => 'required|integer|exists:clients,id',
+            'produits'            => 'required|array|min:1|max:50',
+            'produits.*.id'       => 'required|integer|exists:produits,id',
+            'produits.*.quantite' => 'required|integer|min:1|max:9999',
         ]);
+
+        // Vérifier que le client appartient à l'utilisateur connecté
+        $client = Client::where('id', $request->client_id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
 
         $total = 0;
         $produitsValidés = [];
@@ -47,39 +61,36 @@ class FactureController extends Controller
                               ->first();
 
             if (!$produit) {
-                return back()->withErrors(['Produit non trouvé.'])->withInput();
+                return back()->withErrors(['Produit non trouvé ou accès non autorisé.'])->withInput();
             }
 
-            // Vérification du stock
             if ($prod['quantite'] > $produit->stock) {
                 return back()
-                    ->withErrors(["La quantité demandée pour le produit *{$produit->nom}* dépasse le stock disponible ({$produit->stock})."])
+                    ->withErrors(["Stock insuffisant pour le produit « {$produit->nom} » (stock disponible : {$produit->stock}). Veuillez augmenter votre stock ou diminuer la quantité."])
                     ->withInput();
             }
 
             $produitsValidés[] = [
-                'produit' => $produit,
-                'quantite' => $prod['quantite'],
-                'prix' => $produit->prix_unitaire,
+                'produit'  => $produit,
+                'quantite' => (int) $prod['quantite'],
+                'prix'     => $produit->prix_unitaire,
             ];
 
             $total += $produit->prix_unitaire * $prod['quantite'];
         }
 
         $facture = Facture::create([
-            'client_id' => $request->client_id,
-            'user_id' => Auth::id(),
-            'total' => $total,
-            'date' => now()->toDateString(),
+            'client_id' => $client->id,
+            'user_id'   => Auth::id(),
+            'total'     => $total,
+            'date'      => now()->toDateString(),
         ]);
 
         foreach ($produitsValidés as $item) {
             $facture->produits()->attach($item['produit']->id, [
                 'quantite' => $item['quantite'],
-                'prix' => $item['prix'],
+                'prix'     => $item['prix'],
             ]);
-
-            // Mise à jour du stock
             $item['produit']->decrement('stock', $item['quantite']);
         }
 
@@ -110,37 +121,63 @@ class FactureController extends Controller
         $this->authorizeAccess($facture);
 
         $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'produits' => 'required|array',
-            'produits.*.id' => 'required|exists:produits,id',
-            'produits.*.quantite' => 'required|integer|min:1',
+            'client_id'           => 'required|integer|exists:clients,id',
+            'produits'            => 'required|array|min:1|max:50',
+            'produits.*.id'       => 'required|integer|exists:produits,id',
+            'produits.*.quantite' => 'required|integer|min:1|max:9999',
         ]);
 
-        $total = 0;
+        // Vérifier que le client appartient à l'utilisateur connecté
+        $client = Client::where('id', $request->client_id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        // Restaurer le stock des anciens produits
+        foreach ($facture->produits as $oldProduit) {
+            $oldProduit->increment('stock', $oldProduit->pivot->quantite);
+        }
+
+        $total    = 0;
         $syncData = [];
 
         foreach ($request->produits as $prod) {
             $produit = Produit::where('id', $prod['id'])->where('user_id', Auth::id())->first();
 
             if (!$produit) {
-                return back()->withErrors(['Produit invalide.'])->withInput();
+                foreach ($facture->produits as $oldProduit) {
+                    $oldProduit->decrement('stock', $oldProduit->pivot->quantite);
+                }
+                return back()->withErrors(['Produit invalide ou accès non autorisé.'])->withInput();
+            }
+
+            if ($prod['quantite'] > $produit->stock) {
+                foreach ($facture->produits as $oldProduit) {
+                    $oldProduit->decrement('stock', $oldProduit->pivot->quantite);
+                }
+                return back()
+                    ->withErrors(["Stock insuffisant pour le produit « {$produit->nom} » (stock disponible : {$produit->stock}). Veuillez augmenter votre stock ou diminuer la quantité."])
+                    ->withInput();
             }
 
             $syncData[$prod['id']] = [
-                'quantite' => $prod['quantite'],
-                'prix' => $produit->prix_unitaire,
+                'quantite' => (int) $prod['quantite'],
+                'prix'     => $produit->prix_unitaire,
             ];
 
             $total += $produit->prix_unitaire * $prod['quantite'];
         }
 
         $facture->update([
-            'client_id' => $request->client_id,
-            'total' => $total,
-            'date' => now()->toDateString(),
+            'client_id' => $client->id,
+            'total'     => $total,
+            'date'      => now()->toDateString(),
         ]);
 
         $facture->produits()->sync($syncData);
+
+        foreach ($syncData as $produitId => $data) {
+            Produit::find($produitId)->decrement('stock', $data['quantite']);
+        }
 
         return redirect()->route('factures.index')->with('success', 'Facture mise à jour avec succès.');
     }
@@ -149,10 +186,24 @@ class FactureController extends Controller
     {
         $this->authorizeAccess($facture);
 
+        if (!Auth::user()->canExportPdf()) {
+            return redirect()->route('subscriptions.choose')
+                ->with('error', 'L\'export PDF est disponible à partir du plan Pro. Veuillez mettre à niveau votre abonnement.');
+        }
+
         $facture->load(['client', 'produits', 'paiements']);
-        $pdf = Pdf::loadView('factures.pdf', compact('facture'));
-        return $pdf->download('facture-' . $facture->id . '.pdf');
+        $entrepriseProfile = Auth::user()->entrepriseProfile;
+
+        $pdf = Pdf::loadView('factures.pdf', compact('facture', 'entrepriseProfile'));
+        $filename = 'facture-' . ($facture->numero_facture ?? $facture->id) . '.pdf';
+        return $pdf->download($filename);
     }
+
+    public function destroy(Facture $facture)
+    {
+        abort(403, 'La suppression d\'une facture n\'est pas autorisée.');
+    }
+
 
     private function authorizeAccess(Facture $facture)
     {

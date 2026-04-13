@@ -1,0 +1,334 @@
+# Plan d'implémentation : Gestion Commerciale Complète
+
+## Vue d'ensemble
+
+Implémentation incrémentale des 12 exigences sur la base Laravel 12 existante. Chaque tâche s'appuie sur les précédentes et se termine par un câblage complet. Les tests de propriétés utilisent la bibliothèque Eris (PBT).
+
+## Tâches
+
+- [x] 1. Migrations de base de données
+  - [x] 1.1 Créer la migration pour les nouvelles colonnes de la table `factures`
+    - Ajouter `numero_facture VARCHAR(20) UNIQUE`, `statut ENUM(...)`, `public_token CHAR(36) UNIQUE`, `conditions_paiement TEXT NULL`
+    - _Exigences : 1.1, 1.4, 2.4, 5.1_
+  - [x] 1.2 Créer la migration pour la table `entreprise_profiles`
+    - Colonnes : `user_id UNIQUE`, `nom`, `logo_path`, `adresse`, `telephone`, `email`, `numero_fiscal`
+    - Clé étrangère vers `users` avec `ON DELETE CASCADE`
+    - _Exigences : 3.1, 3.4_
+  - [x] 1.3 Créer la migration pour la table `subscription_payments`
+    - Colonnes : `user_id`, `plan_id`, `montant`, `devise`, `statut ENUM(...)`, `reference_fedapay`
+    - Clés étrangères vers `users` et `plans`
+    - _Exigences : 6.1_
+  - [x] 1.4 Créer la migration pour la table `activity_logs`
+    - Colonnes : `user_id`, `action`, `subject_type`, `subject_id`, `description`, `created_at`
+    - Index composite sur `(user_id, created_at)`
+    - _Exigences : 10.1_
+  - [x] 1.5 Créer la migration pour ajouter `email_verified_at` à la table `users` si absent
+    - _Exigences : 11.1_
+
+- [x] 2. Numérotation automatique des factures
+  - [x] 2.1 Créer `FactureObserver` avec la méthode `creating`
+    - Générer `numero_facture` au format `FAC-AAAA-XXXX` via `DB::transaction()` + `lockForUpdate()` sur `MAX(numero_facture)`
+    - Générer `public_token` avec `Str::uuid()`
+    - Enregistrer l'observer dans `AppServiceProvider`
+    - _Exigences : 1.1, 1.2, 1.3, 5.1_
+  - [ ]* 2.2 Écrire le test de propriété P1 : Format du numéro de facture
+    - **Propriété 1 : Format du numéro de facture**
+    - **Valide : Exigences 1.1**
+    - Fichier : `tests/Property/FactureNumberPropertyTest.php`
+  - [ ]* 2.3 Écrire le test de propriété P2 : Unicité des numéros de facture
+    - **Propriété 2 : Unicité des numéros de facture**
+    - **Valide : Exigences 1.2, 1.3**
+    - Fichier : `tests/Property/FactureNumberPropertyTest.php`
+  - [ ]* 2.4 Écrire le test de propriété P3 : Immuabilité du numéro de facture
+    - **Propriété 3 : Immuabilité du numéro de facture**
+    - **Valide : Exigences 1.4**
+    - Fichier : `tests/Property/FactureNumberPropertyTest.php`
+  - [ ]* 2.5 Écrire le test de propriété P9 : Unicité des tokens publics
+    - **Propriété 9 : Unicité des tokens publics de facture**
+    - **Valide : Exigences 5.1**
+    - Fichier : `tests/Property/FactureNumberPropertyTest.php`
+
+- [x] 3. Statut automatique des factures
+  - [x] 3.1 Créer `PaiementObserver` avec les méthodes `created` et `deleted`
+    - Implémenter `recalculateStatut(Facture $facture)` : calcul basé sur `sum('montant')` vs `facture->total`
+    - Utiliser `updateQuietly()` pour éviter les boucles d'observers
+    - Enregistrer l'observer dans `AppServiceProvider`
+    - _Exigences : 2.1, 2.2, 2.4_
+  - [ ]* 3.2 Écrire le test de propriété P4 : Cohérence statut / paiements
+    - **Propriété 4 : Cohérence statut / paiements**
+    - **Valide : Exigences 2.1, 2.2, 2.4**
+    - Fichier : `tests/Property/FactureStatutPropertyTest.php`
+  - [ ]* 3.3 Écrire les tests unitaires pour le calcul de statut
+    - Cas : 0 paiement → `impayée`, paiement partiel → `partiellement payée`, paiement total → `payée`
+    - Fichier : `tests/Unit/FactureStatutCalculatorTest.php`
+
+- [x] 4. Profil entreprise
+  - [x] 4.1 Créer le model `EntrepriseProfile` avec la relation `belongsTo(User::class)`
+    - Ajouter `hasOne(EntrepriseProfile::class)` sur le model `User`
+    - _Exigences : 3.1, 3.4_
+  - [x] 4.2 Créer `EntrepriseProfileController` avec les méthodes `edit` et `update`
+    - Méthode `update` : valider logo (jpeg/png/webp, max 2 Mo), stocker via `Storage::disk('public')`
+    - Utiliser `updateOrCreate(['user_id' => auth()->id()])` pour garantir l'unicité
+    - Afficher avertissement si profil incomplet (champs obligatoires manquants)
+    - _Exigences : 3.2, 3.3, 3.4, 3.5_
+  - [x] 4.3 Créer `EntrepriseProfilePolicy` et l'enregistrer dans `AuthServiceProvider`
+    - Méthodes `view` et `update` : vérifier `$user->id === $profile->user_id`
+    - _Exigences : 12.1, 12.3_
+  - [x] 4.4 Créer la vue Blade `resources/views/entreprise/edit.blade.php`
+    - Formulaire avec champs nom, adresse, téléphone, email, numéro fiscal, upload logo
+    - Afficher le logo actuel si présent, bandeau d'avertissement si profil incomplet
+    - _Exigences : 3.1, 3.5_
+  - [x] 4.5 Ajouter les routes `GET /entreprise/profil` et `PUT /entreprise/profil` dans `web.php`
+    - Protégées par `auth` et `verified`
+    - _Exigences : 3.1_
+  - [ ]* 4.6 Écrire le test de propriété P5 : Unicité du profil entreprise par utilisateur
+    - **Propriété 5 : Unicité du profil entreprise par utilisateur**
+    - **Valide : Exigences 3.4**
+    - Fichier : `tests/Property/OwnershipPropertyTest.php`
+  - [ ]* 4.7 Écrire le test de propriété P6 : Validation du logo uploadé
+    - **Propriété 6 : Validation du logo uploadé**
+    - **Valide : Exigences 3.3, 12.6**
+    - Fichier : `tests/Unit/EntrepriseProfileValidatorTest.php`
+  - [ ]* 4.8 Écrire le test de propriété P7 : Détection de profil incomplet
+    - **Propriété 7 : Détection de profil incomplet**
+    - **Valide : Exigences 3.5**
+    - Fichier : `tests/Unit/EntrepriseProfileValidatorTest.php`
+
+- [ ] 5. Checkpoint — S'assurer que les tests passent
+  - S'assurer que tous les tests passent, poser des questions à l'utilisateur si nécessaire.
+
+- [ ] 6. Template PDF professionnel
+  - [x] 6.1 Créer la vue Blade `resources/views/factures/pdf.blade.php`
+    - Inclure : logo + nom entreprise, adresse/contacts, IFU, `numero_facture`, date, infos client, tableau produits (qté, prix unitaire), total HT, montant payé, reste à régler, statut, conditions de paiement
+    - Gérer l'absence de logo sans espace réservé
+    - _Exigences : 4.1, 4.4_
+  - [x] 6.2 Modifier `FactureController@exportPdf` pour utiliser la nouvelle vue et vérifier `pdf_enabled`
+    - Retourner HTTP 403 si `pdf_enabled = false`
+    - Vérifier que le profil entreprise est suffisamment rempli avant génération
+    - _Exigences : 4.2, 4.3_
+  - [ ]* 6.3 Écrire le test de propriété P8 : Contenu du PDF généré
+    - **Propriété 8 : Contenu du PDF généré**
+    - **Valide : Exigences 4.1, 4.3**
+    - Fichier : `tests/Property/FactureNumberPropertyTest.php`
+  - [ ]* 6.4 Écrire les tests d'intégration pour l'export PDF
+    - Cas : `pdf_enabled = false` → 403 ; PDF sans logo → génération réussie
+    - Fichier : `tests/Feature/PdfExportTest.php`
+
+- [ ] 7. Page publique partageable
+  - [x] 7.1 Créer `FacturePublicController` avec la méthode `show`
+    - Récupérer la facture par `public_token`, retourner 404 si introuvable
+    - Charger les relations : client, produits, profil entreprise du user
+    - _Exigences : 5.2, 5.3, 5.5_
+  - [x] 7.2 Créer la vue Blade `resources/views/factures/public.blade.php`
+    - Afficher : `numero_facture`, date, produits, total, statut, infos profil entreprise
+    - Ne pas exposer d'autres factures ou données sensibles
+    - _Exigences : 5.2, 5.5_
+  - [x] 7.3 Ajouter la route `GET /factures/public/{token}` dans `web.php` sans middleware `auth`
+    - _Exigences : 5.2_
+  - [x] 7.4 Afficher le lien public copiable dans la vue de détail de facture existante
+    - _Exigences : 5.4_
+  - [ ]* 7.5 Écrire le test de propriété P10 : Isolation des données via token public
+    - **Propriété 10 : Isolation des données via token public**
+    - **Valide : Exigences 5.5**
+    - Fichier : `tests/Feature/FacturePublicPageTest.php`
+  - [ ]* 7.6 Écrire les tests d'intégration pour la page publique
+    - Cas : token invalide → 404 ; token valide → 200 sans auth
+    - Fichier : `tests/Feature/FacturePublicPageTest.php`
+
+- [ ] 8. Historique des paiements d'abonnement
+  - [x] 8.1 Créer le model `SubscriptionPayment` avec la relation `belongsTo(User::class)` et `belongsTo(Plan::class)`
+    - Ajouter `hasMany(SubscriptionPayment::class)` sur le model `User`
+    - _Exigences : 6.1_
+  - [x] 8.2 Modifier `SubscriptionController@webhook` pour enregistrer dans `subscription_payments` à chaque confirmation FedaPay
+    - _Exigences : 6.4_
+  - [x] 8.3 Ajouter la méthode `history` dans `SubscriptionController`
+    - Retourner les transactions paginées (15/page) triées par `created_at DESC`
+    - _Exigences : 6.2, 6.3_
+  - [x] 8.4 Créer la vue Blade `resources/views/abonnements/historique.blade.php`
+    - Afficher la liste paginée avec indicateurs visuels de statut (réussie/échouée/en attente)
+    - _Exigences : 6.2, 6.3_
+  - [x] 8.5 Ajouter la route `GET /abonnements/historique` dans `web.php`
+    - _Exigences : 6.2_
+  - [ ]* 8.6 Écrire le test de propriété P11 : Persistance des transactions d'abonnement
+    - **Propriété 11 : Persistance des transactions d'abonnement**
+    - **Valide : Exigences 6.1, 6.4**
+    - Fichier : `tests/Property/ActivityLogPropertyTest.php`
+  - [ ]* 8.7 Écrire le test de propriété P12 : Ordre décroissant de l'historique
+    - **Propriété 12 : Ordre décroissant de l'historique d'abonnement**
+    - **Valide : Exigences 6.2**
+    - Fichier : `tests/Property/ActivityLogPropertyTest.php`
+
+- [ ] 9. Pagination sur toutes les listes
+  - [x] 9.1 Modifier `ClientController@index` pour utiliser `paginate(15)` au lieu de `get()`
+    - Mettre à jour la vue correspondante pour afficher `{{ $clients->links() }}`
+    - _Exigences : 7.1, 7.2, 7.3_
+  - [x] 9.2 Modifier `ProduitController@index` pour utiliser `paginate(15)`
+    - Mettre à jour la vue correspondante
+    - _Exigences : 7.1, 7.2, 7.3_
+  - [x] 9.3 Modifier `FactureController@index` pour utiliser `paginate(15)`
+    - Mettre à jour la vue correspondante
+    - _Exigences : 7.1, 7.2, 7.3_
+  - [x] 9.4 Modifier `PaiementController@index` pour utiliser `paginate(15)`
+    - Mettre à jour la vue correspondante
+    - _Exigences : 7.1, 7.2, 7.3_
+  - [ ]* 9.5 Écrire le test de propriété P13 : Taille de page de pagination
+    - **Propriété 13 : Taille de page de pagination**
+    - **Valide : Exigences 7.1, 7.3**
+    - Fichier : `tests/Property/PaginationPropertyTest.php`
+
+- [ ] 10. Recherche et filtres
+  - [x] 10.1 Ajouter `scopeSearch($query, $term)` sur le model `Client` (LIKE sur `nom` et `email`)
+    - _Exigences : 8.1_
+  - [x] 10.2 Ajouter `scopeSearch($query, $term)` sur le model `Produit` (LIKE sur `nom`)
+    - _Exigences : 8.3_
+  - [x] 10.3 Ajouter les scopes `scopeFilterClient`, `scopeFilterDateRange`, `scopeFilterStatut` sur le model `Facture`
+    - _Exigences : 8.2_
+  - [x] 10.4 Modifier `ClientController@index` pour appliquer le scope de recherche et passer les paramètres à la vue
+    - Utiliser `->withQueryString()` sur le paginator pour conserver les filtres
+    - _Exigences : 8.1, 7.4_
+  - [x] 10.5 Modifier `ProduitController@index` pour appliquer le scope de recherche
+    - Utiliser `->withQueryString()`
+    - _Exigences : 8.3, 7.4_
+  - [x] 10.6 Modifier `FactureController@index` pour appliquer les scopes de filtrage combinés
+    - Utiliser `->withQueryString()`
+    - _Exigences : 8.2, 7.4_
+  - [x] 10.7 Mettre à jour les vues Blade des listes pour inclure les formulaires de recherche/filtre avec bouton de réinitialisation
+    - _Exigences : 8.4, 8.5_
+  - [ ]* 10.8 Écrire le test de propriété P14 : Conservation des filtres dans la pagination
+    - **Propriété 14 : Conservation des filtres dans la pagination**
+    - **Valide : Exigences 7.4**
+    - Fichier : `tests/Property/PaginationPropertyTest.php`
+  - [ ]* 10.9 Écrire le test de propriété P15 : Correction du filtrage par terme partiel
+    - **Propriété 15 : Correction du filtrage par terme partiel**
+    - **Valide : Exigences 8.1, 8.3**
+    - Fichier : `tests/Property/SearchFilterPropertyTest.php`
+  - [ ]* 10.10 Écrire le test de propriété P16 : Correction du filtrage des factures
+    - **Propriété 16 : Correction du filtrage des factures**
+    - **Valide : Exigences 8.2**
+    - Fichier : `tests/Property/SearchFilterPropertyTest.php`
+  - [ ]* 10.11 Écrire le test de propriété P17 : Reset des filtres retourne tous les éléments
+    - **Propriété 17 : Reset des filtres retourne tous les éléments**
+    - **Valide : Exigences 8.5**
+    - Fichier : `tests/Property/SearchFilterPropertyTest.php`
+
+- [ ] 11. Checkpoint — S'assurer que les tests passent
+  - S'assurer que tous les tests passent, poser des questions à l'utilisateur si nécessaire.
+
+- [ ] 12. Emails transactionnels
+  - [x] 12.1 Créer le Mailable `FactureCreatedMail` dans `app/Mail/`
+    - Construire la vue email avec `numero_facture`, nom client, total, date
+    - Configurer `$tries = 3` et la méthode `failed()` pour logger l'erreur
+    - _Exigences : 9.1, 9.3_
+  - [x] 12.2 Créer le Mailable `PaiementEnregistreMail` dans `app/Mail/`
+    - Construire la vue email avec montant reçu, `numero_facture`, nouveau statut, reste à régler
+    - Configurer `$tries = 3` et la méthode `failed()` pour logger l'erreur
+    - _Exigences : 9.2, 9.3_
+  - [x] 12.3 Créer les vues Blade pour les emails dans `resources/views/emails/`
+    - `facture-created.blade.php` et `paiement-enregistre.blade.php`
+    - _Exigences : 9.1, 9.2_
+  - [x] 12.4 Modifier `FactureObserver@created` pour dispatcher `FactureCreatedMail` dans la queue
+    - Utiliser `Mail::to($facture->user->email)->queue(new FactureCreatedMail($facture))`
+    - _Exigences : 9.1, 9.4_
+  - [x] 12.5 Modifier `PaiementObserver@created` pour dispatcher `PaiementEnregistreMail` dans la queue
+    - _Exigences : 9.2, 9.4_
+  - [x] 12.6 Configurer la queue `database` dans `.env` et créer la migration `jobs` si absente
+    - _Exigences : 9.4_
+  - [ ]* 12.7 Écrire le test de propriété P18 : Dispatch email asynchrone sur événements CRUD
+    - **Propriété 18 : Dispatch email asynchrone sur événements CRUD**
+    - **Valide : Exigences 9.1, 9.2, 9.4**
+    - Fichier : `tests/Property/FactureStatutPropertyTest.php`
+  - [ ]* 12.8 Écrire les tests d'intégration pour les emails
+    - Cas : échec d'envoi → pas d'exception propagée
+    - Fichier : `tests/Feature/EmailVerificationTest.php`
+
+- [ ] 13. Logs d'activité
+  - [x] 13.1 Créer le model `ActivityLog` avec la relation `belongsTo(User::class)`
+    - Ajouter `hasMany(ActivityLog::class)` sur le model `User`
+    - _Exigences : 10.1_
+  - [x] 13.2 Créer `ClientObserver` avec les méthodes `created`, `updated`, `deleted` pour logger dans `activity_logs`
+    - Enregistrer l'observer dans `AppServiceProvider`
+    - _Exigences : 10.1_
+  - [x] 13.3 Créer `ProduitObserver` avec les méthodes `created`, `updated`, `deleted`
+    - _Exigences : 10.1_
+  - [x] 13.4 Modifier `FactureObserver` et `PaiementObserver` pour ajouter le logging dans `activity_logs`
+    - _Exigences : 10.1_
+  - [x] 13.5 Modifier `EntrepriseProfileController@update` pour logger la modification du profil
+    - _Exigences : 10.1_
+  - [x] 13.6 Créer `ActivityLogController@index` avec vérification du plan Premium (HTTP 403 sinon)
+    - Retourner les logs paginés (15/page) triés par `created_at DESC`
+    - _Exigences : 10.2, 10.3_
+  - [x] 13.7 Créer la vue Blade `resources/views/activite/index.blade.php`
+    - Afficher la liste paginée avec action, entité, date/heure
+    - _Exigences : 10.2_
+  - [x] 13.8 Ajouter la route `GET /activite` dans `web.php` protégée par `auth` et `verified`
+    - _Exigences : 10.2_
+  - [x] 13.9 Créer la commande Artisan `PurgeOldActivityLogs` et la planifier dans `Kernel.php` (quotidien)
+    - Supprimer les entrées dont `created_at < now()->subDays(90)`
+    - _Exigences : 10.4_
+  - [ ]* 13.10 Écrire le test de propriété P19 : Traçabilité des actions CRUD dans les logs
+    - **Propriété 19 : Traçabilité des actions CRUD dans les logs**
+    - **Valide : Exigences 10.1, 10.5**
+    - Fichier : `tests/Property/ActivityLogPropertyTest.php`
+  - [ ]* 13.11 Écrire le test de propriété P20 : Purge des logs après 90 jours
+    - **Propriété 20 : Purge des logs après 90 jours**
+    - **Valide : Exigences 10.4**
+    - Fichier : `tests/Property/ActivityLogPropertyTest.php`
+  - [ ]* 13.12 Écrire les tests d'intégration pour les logs d'activité
+    - Cas : User non Premium → 403 sur `/activite`
+    - Fichier : `tests/Feature/ActivityLogAccessTest.php`
+
+- [ ] 14. Vérification email à l'inscription
+  - [x] 14.1 Implémenter `MustVerifyEmail` sur le model `User`
+    - Ajouter `implements MustVerifyEmail` à la classe `User`
+    - _Exigences : 11.5_
+  - [x] 14.2 Activer les routes de vérification email dans `web.php`
+    - Ajouter `Auth::routes(['verify' => true])` ou les routes manuelles équivalentes
+    - Protéger les routes principales avec le middleware `verified`
+    - _Exigences : 11.1, 11.2, 11.3, 11.4_
+  - [x] 14.3 Créer ou modifier la vue de bandeau d'invitation à vérifier l'email dans le layout principal
+    - Afficher le bandeau si `!auth()->user()->hasVerifiedEmail()`
+    - _Exigences : 11.2_
+  - [ ]* 14.4 Écrire le test de propriété P21 : Restriction d'accès pour utilisateurs non vérifiés
+    - **Propriété 21 : Restriction d'accès pour utilisateurs non vérifiés**
+    - **Valide : Exigences 11.2**
+    - Fichier : `tests/Property/OwnershipPropertyTest.php`
+  - [ ]* 14.5 Écrire les tests d'intégration pour la vérification email
+    - Cas : inscription → email dispatché ; lien valide → `email_verified_at` non null ; lien expiré → page renvoi
+    - Fichier : `tests/Feature/EmailVerificationTest.php`
+
+- [ ] 15. Policies Laravel (ownership check)
+  - [x] 15.1 Créer `FacturePolicy` avec les méthodes `view`, `update`, `exportPdf`
+    - Vérifier `$user->id === $facture->user_id` dans chaque méthode
+    - `exportPdf` : vérifier aussi `$user->pdf_enabled`
+    - _Exigences : 12.1, 12.3, 4.2_
+  - [x] 15.2 Créer `ClientPolicy`, `ProduitPolicy`, `PaiementPolicy` avec les méthodes `view`, `update`, `delete`
+    - Vérifier l'ownership dans chaque méthode
+    - _Exigences : 12.1, 12.3_
+  - [x] 15.3 Enregistrer toutes les Policies dans `AuthServiceProvider`
+    - _Exigences : 12.1_
+  - [x] 15.4 Appliquer `$this->authorize()` dans tous les controllers concernés (`FactureController`, `ClientController`, `ProduitController`, `PaiementController`)
+    - _Exigences : 12.1, 12.3_
+  - [x] 15.5 Configurer le rate limiting dans `RouteServiceProvider` : 60 req/min sur routes auth, 10 tentatives/min sur routes de connexion
+    - _Exigences : 12.5_
+  - [ ]* 15.6 Écrire le test de propriété P22 : Ownership check sur toutes les ressources
+    - **Propriété 22 : Ownership check sur toutes les ressources**
+    - **Valide : Exigences 12.1, 12.3**
+    - Fichier : `tests/Property/OwnershipPropertyTest.php`
+  - [ ]* 15.7 Écrire le test de propriété P23 : Rejet des entrées invalides
+    - **Propriété 23 : Rejet des entrées invalides**
+    - **Valide : Exigences 12.4**
+    - Fichier : `tests/Property/OwnershipPropertyTest.php`
+  - [ ]* 15.8 Écrire les tests d'intégration pour le rate limiting
+    - Cas : 61ème requête → 429
+    - Fichier : `tests/Feature/RateLimitingTest.php`
+
+- [x] 16. Checkpoint final — S'assurer que tous les tests passent
+  - S'assurer que tous les tests passent, poser des questions à l'utilisateur si nécessaire.
+
+## Notes
+
+- Les tâches marquées `*` sont optionnelles et peuvent être ignorées pour un MVP rapide
+- Chaque tâche référence les exigences spécifiques pour la traçabilité
+- Les tests de propriétés utilisent Eris (`composer require --dev giorgiosironi/eris`) avec minimum 100 itérations
+- Les checkpoints garantissent une validation incrémentale à chaque étape majeure
+- Installer Eris avant de commencer les tâches de tests : `composer require --dev giorgiosironi/eris`

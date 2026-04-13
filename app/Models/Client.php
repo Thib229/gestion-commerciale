@@ -23,5 +23,14 @@ class Client extends Model
     {
         return $this->hasMany(Facture::class);
     }
+
+    // Scope de recherche par nom ou email
+    public function scopeSearch($query, string $term)
+    {
+        return $query->where(function ($q) use ($term) {
+            $q->where('nom', 'like', '%' . $term . '%')
+              ->orWhere('email', 'like', '%' . $term . '%');
+        });
+    }
 }
 

@@ -47,4 +47,28 @@ class Facture extends Model
     {
         return $this->total - $this->montant_paye;
     }
+
+    // Scopes de filtrage
+    public function scopeFilterClient($query, string $term)
+    {
+        return $query->whereHas('client', function ($q) use ($term) {
+            $q->where('nom', 'like', '%' . $term . '%');
+        });
+    }
+
+    public function scopeFilterDateRange($query, ?string $from, ?string $to)
+    {
+        if ($from) {
+            $query->whereDate('date', '>=', $from);
+        }
+        if ($to) {
+            $query->whereDate('date', '<=', $to);
+        }
+        return $query;
+    }
+
+    public function scopeFilterStatut($query, string $statut)
+    {
+        return $query->where('statut', $statut);
+    }
 }

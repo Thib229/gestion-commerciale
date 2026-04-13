@@ -10,7 +10,7 @@
         />
 
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ config('app.name', 'GestCom') }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -22,6 +22,25 @@
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
             @include('layouts.navigation')
+
+            <!-- Bandeau vérification email -->
+            @auth
+                @if(!auth()->user()->hasVerifiedEmail())
+                    <div class="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+                        <div class="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-2">
+                            <p class="text-sm text-yellow-800">
+                                ⚠️ Votre adresse email n'est pas encore vérifiée. Certaines fonctionnalités peuvent être limitées.
+                            </p>
+                            <form method="POST" action="{{ route('verification.send') }}">
+                                @csrf
+                                <button type="submit" class="text-sm text-yellow-700 underline hover:text-yellow-900 font-medium">
+                                    Renvoyer l'email de vérification
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+            @endauth
 
             <!-- Page Heading -->
             @isset($header)

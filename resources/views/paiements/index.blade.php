@@ -15,6 +15,19 @@
                 </div>
             @endif
 
+            @if ($errors->any())
+                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    <ul class="list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if ($factures->isEmpty())
+                <p class="text-gray-500 italic">Aucune facture en attente de paiement.</p>
+            @else
             <form action="{{ route('paiements.store') }}" method="POST" class="flex flex-col md:flex-row md:items-center md:space-x-4">
                 @csrf
 
@@ -23,8 +36,9 @@
                     <select name="facture_id" id="facture_id" class="mt-1 block w-full border-gray-300 rounded-md">
                         <option value="">-- Choisir une facture --</option>
                         @foreach ($factures as $facture)
-                            <option value="{{ $facture->id }}">
-                                #{{ $facture->id }} - {{ $facture->client->nom ?? 'Client' }} - {{ number_format($facture->total, 0, ',', ' ') }} F
+                            <option value="{{ $facture->id }}" {{ old('facture_id') == $facture->id ? 'selected' : '' }}>
+                                #{{ $facture->id }} - {{ $facture->client->nom ?? 'Client' }}
+                                — Reste : {{ number_format($facture->reste_a_regler, 0, ',', ' ') }} F
                             </option>
                         @endforeach
                     </select>
@@ -47,6 +61,7 @@
                     </button>
                 </div>
             </form>
+            @endif
         </div>
 
         <!-- Liste des paiements -->
@@ -75,6 +90,10 @@
                     @endforelse
                 </tbody>
             </table>
+
+            <div class="mt-4">
+                {{ $paiements->links() }}
+            </div>
         </div>
 
     </div>
