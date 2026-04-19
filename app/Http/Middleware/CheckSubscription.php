@@ -16,16 +16,18 @@ class CheckSubscription
             return redirect()->route('login');
         }
 
+        $owner = $user->entreprise?->user ?: $user;
+
         // 1. Vérifier la période d'essai (7 jours)
-        if ($user->trial_started_at) {
-            $trialEnd = $user->trial_started_at->addDays(7);
+        if ($owner->trial_started_at) {
+            $trialEnd = $owner->trial_started_at->copy()->addDays(7);
             if (now()->lessThanOrEqualTo($trialEnd)) {
                 return $next($request);
             }
         }
 
         // 2. Vérifier un abonnement actif non expiré
-        $subscription = $user->subscription()
+        $subscription = $owner->subscription()
             ->where('is_active', true)
             ->where('is_trial', false)
             ->where('ends_at', '>=', now())
@@ -33,15 +35,15 @@ class CheckSubscription
 
         if ($subscription) {
             // Synchroniser le statut sur le user si nécessaire
-            if ($user->subscription_status !== 'active') {
-                $user->update(['subscription_status' => 'active']);
+            if ($owner->subscription_status !== 'active') {
+                $owner->update(['subscription_status' => 'active']);
             }
             return $next($request);
         }
 
         // 3. Abonnement expiré → mettre à jour le statut et bloquer
-        if ($user->subscription_status === 'active') {
-            $user->update(['subscription_status' => 'expired']);
+        if ($owner->subscription_status === 'active') {
+            $owner->update(['subscription_status' => 'expired']);
         }
 
         return redirect()->route('subscriptions.choose')

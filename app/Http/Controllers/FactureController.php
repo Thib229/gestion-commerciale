@@ -17,9 +17,10 @@ class FactureController extends Controller
         $dateFrom = request('date_from');
         $dateTo = request('date_to');
         $statut = request('statut');
+        $entrepriseId = Auth::user()->entreprise_id;
 
         $factures = Facture::with('client')
-            ->where('user_id', Auth::id())
+            ->where('entreprise_id', $entrepriseId)
             ->when($search, fn ($q) => $q->filterClient($search))
             ->when($dateFrom || $dateTo, fn ($q) => $q->filterDateRange($dateFrom, $dateTo))
             ->when($statut, fn ($q) => $q->filterStatut($statut))
@@ -32,8 +33,9 @@ class FactureController extends Controller
 
     public function create()
     {
-        $clients = Client::where('user_id', Auth::id())->get();
-        $produits = Produit::where('user_id', Auth::id())->get();
+        $entrepriseId = Auth::user()->entreprise_id;
+        $clients = Client::where('entreprise_id', $entrepriseId)->get();
+        $produits = Produit::where('entreprise_id', $entrepriseId)->get();
 
         return view('factures.create', compact('clients', 'produits'));
     }
@@ -49,7 +51,7 @@ class FactureController extends Controller
 
         // Vérifier que le client appartient à l'utilisateur connecté
         $client = Client::where('id', $request->client_id)
-            ->where('user_id', Auth::id())
+            ->where('entreprise_id', Auth::user()->entreprise_id)
             ->firstOrFail();
 
         $total = 0;
@@ -57,7 +59,7 @@ class FactureController extends Controller
 
         foreach ($request->produits as $prod) {
             $produit = Produit::where('id', $prod['id'])
-                              ->where('user_id', Auth::id())
+                              ->where('entreprise_id', Auth::user()->entreprise_id)
                               ->first();
 
             if (!$produit) {
@@ -80,10 +82,11 @@ class FactureController extends Controller
         }
 
         $facture = Facture::create([
-            'client_id' => $client->id,
-            'user_id'   => Auth::id(),
-            'total'     => $total,
-            'date'      => now()->toDateString(),
+            'client_id'     => $client->id,
+            'user_id'       => Auth::id(),
+            'entreprise_id' => Auth::user()->entreprise_id,
+            'total'         => $total,
+            'date'          => now()->toDateString(),
         ]);
 
         foreach ($produitsValidés as $item) {
@@ -109,8 +112,9 @@ class FactureController extends Controller
     {
         $this->authorizeAccess($facture);
 
-        $clients = Client::where('user_id', Auth::id())->get();
-        $produits = Produit::where('user_id', Auth::id())->get();
+        $entrepriseId = Auth::user()->entreprise_id;
+        $clients = Client::where('entreprise_id', $entrepriseId)->get();
+        $produits = Produit::where('entreprise_id', $entrepriseId)->get();
         $facture->load('produits');
 
         return view('factures.edit', compact('facture', 'clients', 'produits'));
@@ -129,7 +133,7 @@ class FactureController extends Controller
 
         // Vérifier que le client appartient à l'utilisateur connecté
         $client = Client::where('id', $request->client_id)
-            ->where('user_id', Auth::id())
+            ->where('entreprise_id', Auth::user()->entreprise_id)
             ->firstOrFail();
 
         // Restaurer le stock des anciens produits
@@ -141,7 +145,9 @@ class FactureController extends Controller
         $syncData = [];
 
         foreach ($request->produits as $prod) {
-            $produit = Produit::where('id', $prod['id'])->where('user_id', Auth::id())->first();
+            $produit = Produit::where('id', $prod['id'])
+                ->where('entreprise_id', Auth::user()->entreprise_id)
+                ->first();
 
             if (!$produit) {
                 foreach ($facture->produits as $oldProduit) {
@@ -192,7 +198,7 @@ class FactureController extends Controller
         }
 
         $facture->load(['client', 'produits', 'paiements']);
-        $entrepriseProfile = Auth::user()->entrepriseProfile;
+        $entrepriseProfile = Auth::user()->entreprise;
 
         $pdf = Pdf::loadView('factures.pdf', compact('facture', 'entrepriseProfile'));
         $filename = 'facture-' . ($facture->numero_facture ?? $facture->id) . '.pdf';
@@ -207,7 +213,7 @@ class FactureController extends Controller
 
     private function authorizeAccess(Facture $facture)
     {
-        if ($facture->user_id !== Auth::id()) {
+        if ($facture->entreprise_id !== Auth::user()->entreprise_id) {
             abort(403, 'Accès non autorisé.');
         }
     }

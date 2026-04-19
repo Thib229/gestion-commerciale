@@ -12,15 +12,17 @@ class PaiementController extends Controller
     /* Liste + formulaire d’ajout */
     public function index()
     {
+        $entrepriseId = Auth::user()->entreprise_id;
+
         $paiements = Paiement::whereHas('facture', fn ($q) =>
-                $q->where('user_id', Auth::id()))
+                $q->where('entreprise_id', $entrepriseId))
             ->with('facture.client')
             ->orderByDesc('date_paiement')
             ->paginate(15)
             ->withQueryString();
 
         // Uniquement les factures non entièrement soldées
-        $factures = Facture::where('user_id', Auth::id())
+        $factures = Facture::where('entreprise_id', $entrepriseId)
             ->with(['client', 'paiements'])
             ->get()
             ->filter(fn ($f) => $f->reste_a_regler > 0)
@@ -38,7 +40,7 @@ class PaiementController extends Controller
         ]);
 
         $facture = Facture::where('id', $request->facture_id)
-                          ->where('user_id', Auth::id())
+                          ->where('entreprise_id', Auth::user()->entreprise_id)
                           ->firstOrFail();
 
         if ($facture->reste_a_regler <= 0) {

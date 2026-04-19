@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\EntrepriseProfile;
 use App\Models\User;
 use App\Models\Subscription;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
@@ -35,23 +37,38 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
-            'name'                => $request->name,
-            'email'               => $request->email,
-            'password'            => Hash::make($request->password),
-            'trial_started_at'    => now(),
-            'subscription_status' => 'trial',
-        ]);
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
+                'name'                => $request->name,
+                'email'               => $request->email,
+                'password'            => Hash::make($request->password),
+                'role'                => 'admin',
+                'trial_started_at'    => now(),
+                'subscription_status' => 'trial',
+            ]);
 
-        // Création automatique de l'essai gratuit (7 jours)
-        Subscription::create([
-            'user_id'   => $user->id,
-            'plan_id'   => null,
-            'is_trial'  => true,
-            'is_active' => true,
-            'starts_at' => now(),
-            'ends_at'   => now()->addDays(7),
-        ]);
+            $entreprise = EntrepriseProfile::create([
+                'user_id' => $user->id,
+                'nom'     => $user->name,
+                'email'   => $user->email,
+            ]);
+
+            $user->update([
+                'entreprise_id' => $entreprise->id,
+            ]);
+
+            // Création automatique de l'essai gratuit (7 jours)
+            Subscription::create([
+                'user_id'   => $user->id,
+                'plan_id'   => null,
+                'is_trial'  => true,
+                'is_active' => true,
+                'starts_at' => now(),
+                'ends_at'   => now()->addDays(7),
+            ]);
+
+            return $user;
+        });
 
         event(new Registered($user));
 

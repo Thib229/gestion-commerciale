@@ -22,6 +22,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'entreprise_id',
+        'role',
+        'staff_role',
         'trial_started_at',
         'subscription_status',
     ];
@@ -71,6 +74,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(\App\Models\EntrepriseProfile::class);
     }
 
+    public function entreprise()
+    {
+        return $this->belongsTo(\App\Models\EntrepriseProfile::class, 'entreprise_id');
+    }
+
     public function subscriptionPayments()
     {
         return $this->hasMany(\App\Models\SubscriptionPayment::class);
@@ -95,9 +103,10 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canExportPdf(): bool
     {
-        if ($this->isOnTrial()) return true;
+        $owner = $this->entreprise?->user ?: $this;
+        if ($owner->isOnTrial()) return true;
 
-        $sub = $this->activeSubscription()->with('plan')->first();
+        $sub = $owner->activeSubscription()->with('plan')->first();
         return $sub && $sub->plan && $sub->plan->pdf_enabled;
     }
 
@@ -106,9 +115,10 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getPlanName(): string
     {
-        if ($this->isOnTrial()) return 'Essai gratuit';
+        $owner = $this->entreprise?->user ?: $this;
+        if ($owner->isOnTrial()) return 'Essai gratuit';
 
-        $sub = $this->activeSubscription()->with('plan')->first();
+        $sub = $owner->activeSubscription()->with('plan')->first();
         return $sub && $sub->plan ? $sub->plan->name : 'Aucun';
     }
 
@@ -117,9 +127,10 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canViewStatistics(): bool
     {
-        if ($this->isOnTrial()) return true;
+        $owner = $this->entreprise?->user ?: $this;
+        if ($owner->isOnTrial()) return true;
 
-        $sub = $this->activeSubscription()->with('plan')->first();
+        $sub = $owner->activeSubscription()->with('plan')->first();
         return $sub && $sub->plan && $sub->plan->statistics_enabled;
     }
 
@@ -128,9 +139,10 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function clientLimitPerDay(): ?int
     {
-        if ($this->isOnTrial()) return null;
+        $owner = $this->entreprise?->user ?: $this;
+        if ($owner->isOnTrial()) return null;
 
-        $sub = $this->activeSubscription()->with('plan')->first();
+        $sub = $owner->activeSubscription()->with('plan')->first();
         return $sub && $sub->plan ? $sub->plan->client_limit_per_day : 1;
     }
 
@@ -142,10 +154,33 @@ class User extends Authenticatable implements MustVerifyEmail
         $limit = $this->clientLimitPerDay();
         if ($limit === null) return true;
 
-        $count = \App\Models\Client::where('user_id', $this->id)
+        $count = \App\Models\Client::where('entreprise_id', $this->entreprise_id)
             ->whereDate('created_at', today())
             ->count();
 
         return $count < $limit;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    public function hasPremiumMultiUsersAccess(): bool
+    {
+        if ($this->isOnTrial()) {
+            return true;
+        }
+
+        $owner = $this->entreprise?->user;
+        $subscriptionUser = $owner ?: $this;
+        $sub = $subscriptionUser->activeSubscription()->with('plan')->first();
+
+        return (bool) ($sub && $sub->plan && $sub->plan->multi_users);
     }
 }

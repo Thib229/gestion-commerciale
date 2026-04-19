@@ -9,7 +9,7 @@ class Produit extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nom', 'prix_unitaire', 'stock', 'user_id'];
+    protected $fillable = ['nom', 'prix_unitaire', 'stock', 'user_id', 'entreprise_id'];
 
     public function factures()
     {
@@ -21,6 +21,11 @@ class Produit extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function entreprise()
+    {
+        return $this->belongsTo(EntrepriseProfile::class, 'entreprise_id');
     }
 
     // Scope de recherche par nom

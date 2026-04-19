@@ -12,12 +12,14 @@ class EntrepriseProfileController extends Controller
 {
     public function edit()
     {
-        $profile = Auth::user()->entrepriseProfile;
+        $profile = Auth::user()->entreprise;
         return view('entreprise.edit', compact('profile'));
     }
 
     public function update(Request $request)
     {
+        abort_unless(Auth::user()->isAdmin(), 403, 'Seul l’administrateur peut modifier le profil entreprise.');
+
         $validated = $request->validate([
             'nom'           => 'required|string|max:255',
             'adresse'       => 'nullable|string|max:500',
@@ -37,17 +39,16 @@ class EntrepriseProfileController extends Controller
 
         if ($request->hasFile('logo')) {
             // Supprimer l'ancien logo si existant
-            $existing = Auth::user()->entrepriseProfile;
+            $existing = Auth::user()->entreprise;
             if ($existing && $existing->logo_path) {
                 Storage::disk('public')->delete($existing->logo_path);
             }
             $data['logo_path'] = $request->file('logo')->store('logos', 'public');
         }
 
-        $profile = EntrepriseProfile::updateOrCreate(
-            ['user_id' => Auth::id()],
-            $data
-        );
+        $profile = Auth::user()->entreprise;
+        abort_if(!$profile, 422, 'Profil entreprise introuvable.');
+        $profile->update($data);
 
         // Log de l'activité
         ActivityLog::create([

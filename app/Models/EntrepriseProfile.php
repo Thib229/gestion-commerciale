@@ -16,6 +16,26 @@ class EntrepriseProfile extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function users()
+    {
+        return $this->hasMany(User::class, 'entreprise_id');
+    }
+
+    public function clients()
+    {
+        return $this->hasMany(Client::class, 'entreprise_id');
+    }
+
+    public function produits()
+    {
+        return $this->hasMany(Produit::class, 'entreprise_id');
+    }
+
+    public function factures()
+    {
+        return $this->hasMany(Facture::class, 'entreprise_id');
+    }
+
     /**
      * Vérifie si le profil est complet (tous les champs obligatoires renseignés)
      */

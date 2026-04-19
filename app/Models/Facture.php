@@ -13,7 +13,8 @@ class Facture extends Model
         'client_id',
         'total',
         'date',
-        'user_id', // Ajout pour lier à l'utilisateur connecté
+        'user_id',
+        'entreprise_id',
     ];
 
     public function produits()
@@ -34,6 +35,11 @@ class Facture extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function entreprise()
+    {
+        return $this->belongsTo(EntrepriseProfile::class, 'entreprise_id');
     }
 
     // ✅ Montant déjà payé

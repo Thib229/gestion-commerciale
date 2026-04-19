@@ -68,6 +68,21 @@
                 </div>
             </div>
 
+            @if(Auth::user()->hasPremiumMultiUsersAccess())
+                <div class="bg-white shadow rounded p-4 flex items-center space-x-4">
+                    <div class="text-indigo-700 text-3xl"><i class="fas fa-user-shield"></i></div>
+                    <div>
+                        <h3 class="text-gray-700 text-sm">Utilisateurs</h3>
+                        <p class="text-2xl font-bold text-indigo-600">{{ $nbUtilisateurs }}</p>
+                        @if(Auth::user()->isAdmin())
+                            <a href="{{ route('users.index') }}" class="text-xs text-indigo-500">Gérer →</a>
+                        @else
+                            <span class="text-xs text-gray-400">Accès admin requis</span>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
         </div>
 
         {{-- Accès rapide + Top produits --}}

@@ -14,8 +14,9 @@ class ClientController extends Controller
     public function index()
     {
         $search = request('search');
+        $entrepriseId = Auth::user()->entreprise_id;
 
-        $clients = Client::where('user_id', Auth::id())
+        $clients = Client::where('entreprise_id', $entrepriseId)
             ->when($search, fn ($q) => $q->search($search))
             ->orderBy('nom')
             ->paginate(15)
@@ -50,10 +51,11 @@ class ClientController extends Controller
         ]);
 
         $validated['user_id'] = Auth::id();
+        $validated['entreprise_id'] = Auth::user()->entreprise_id;
 
         $client = Client::create($validated);
 
-        return redirect()->route('clients.show_after_create', $client)
+        return redirect()->route('clients.index')
             ->with('success', 'Client ajouté avec succès.');
     }
 
@@ -107,7 +109,7 @@ class ClientController extends Controller
      */
     private function authorizeClient(Client $client)
     {
-        if ($client->user_id !== Auth::id()) {
+        if ($client->entreprise_id !== Auth::user()->entreprise_id) {
             abort(403, 'Accès non autorisé');
         }
     }

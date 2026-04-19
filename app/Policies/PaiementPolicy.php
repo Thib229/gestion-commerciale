@@ -9,11 +9,11 @@ class PaiementPolicy
 {
     public function view(User $user, Paiement $paiement): bool
     {
-        return $user->id === $paiement->facture->user_id;
+        return $user->entreprise_id !== null && $user->entreprise_id === $paiement->facture->entreprise_id;
     }
 
     public function delete(User $user, Paiement $paiement): bool
     {
-        return $user->id === $paiement->facture->user_id;
+        return $user->entreprise_id !== null && $user->entreprise_id === $paiement->facture->entreprise_id;
     }
 }

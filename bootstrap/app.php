@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'check.subscription' => \App\Http\Middleware\CheckSubscription::class,
+            'premium.multiusers' => \App\Http\Middleware\EnsurePremiumMultiUsers::class,
         ]);
         $middleware->validateCsrfTokens(except: []);
     })

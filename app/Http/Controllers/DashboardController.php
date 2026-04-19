@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Produit;
 use App\Models\Facture;
 use App\Models\Paiement;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -14,29 +15,30 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $userId = Auth::id(); // Récupère l'ID de l'utilisateur connecté
+        $entrepriseId = Auth::user()->entreprise_id;
 
-        $nbClients = Client::where('user_id', $userId)->count();
-        $nbProduits = Produit::where('user_id', $userId)->count();
-        $nbFactures = Facture::where('user_id', $userId)->count();
-        $totalPaiements = Paiement::whereHas('facture', function ($query) use ($userId) {
-            $query->where('user_id', $userId);
+        $nbClients = Client::where('entreprise_id', $entrepriseId)->count();
+        $nbProduits = Produit::where('entreprise_id', $entrepriseId)->count();
+        $nbFactures = Facture::where('entreprise_id', $entrepriseId)->count();
+        $nbUtilisateurs = User::where('entreprise_id', $entrepriseId)->count();
+        $totalPaiements = Paiement::whereHas('facture', function ($query) use ($entrepriseId) {
+            $query->where('entreprise_id', $entrepriseId);
         })->sum('montant');
-        $chiffreAffaires = Facture::where('user_id', $userId)->sum('total');
+        $chiffreAffaires = Facture::where('entreprise_id', $entrepriseId)->sum('total');
 
         $produitsPopulaires = collect();
         $stats = collect();
 
         if (Auth::user()->canViewStatistics()) {
-            $produitsPopulaires = Produit::withCount(['factures' => function ($query) use ($userId) {
-                $query->where('user_id', $userId);
+            $produitsPopulaires = Produit::withCount(['factures' => function ($query) use ($entrepriseId) {
+                $query->where('entreprise_id', $entrepriseId);
             }])
-            ->where('user_id', $userId)
+            ->where('entreprise_id', $entrepriseId)
             ->orderByDesc('factures_count')
             ->take(5)
             ->get();
 
-            $stats = Facture::where('user_id', $userId)
+            $stats = Facture::where('entreprise_id', $entrepriseId)
                 ->select(
                     DB::raw('MONTH(created_at) as month'),
                     DB::raw('YEAR(created_at) as year'),
@@ -52,6 +54,7 @@ class DashboardController extends Controller
             'nbClients',
             'nbProduits',
             'nbFactures',
+            'nbUtilisateurs',
             'totalPaiements',
             'chiffreAffaires',
             'produitsPopulaires',

@@ -10,8 +10,9 @@ class ProduitController extends Controller
     public function index()
     {
         $search = request('search');
+        $entrepriseId = auth()->user()->entreprise_id;
 
-        $produits = Produit::where('user_id', auth()->id())
+        $produits = Produit::where('entreprise_id', $entrepriseId)
             ->when($search, fn ($q) => $q->search($search))
             ->orderBy('nom')
             ->paginate(15)
@@ -36,7 +37,8 @@ class ProduitController extends Controller
             'nom' => $request->nom,
             'prix_unitaire' => $request->prix_unitaire,
             'stock' => $request->stock,
-            'user_id' => auth()->id(), // ✅ associer l'utilisateur connecté
+            'user_id' => auth()->id(),
+            'entreprise_id' => auth()->user()->entreprise_id,
         ]);
 
         return redirect()->route('produits.index')->with('success', 'Produit ajouté avec succès.');
@@ -45,7 +47,7 @@ class ProduitController extends Controller
     public function edit(Produit $produit)
     {
         // ✅ empêcher l'accès à un produit d'un autre utilisateur
-        if ($produit->user_id !== auth()->id()) {
+        if ($produit->entreprise_id !== auth()->user()->entreprise_id) {
             abort(403);
         }
 
@@ -54,7 +56,7 @@ class ProduitController extends Controller
 
     public function update(Request $request, Produit $produit)
     {
-        if ($produit->user_id !== auth()->id()) {
+        if ($produit->entreprise_id !== auth()->user()->entreprise_id) {
             abort(403);
         }
 
@@ -71,7 +73,7 @@ class ProduitController extends Controller
 
     public function destroy(Produit $produit)
     {
-        if ($produit->user_id !== auth()->id()) {
+        if ($produit->entreprise_id !== auth()->user()->entreprise_id) {
             abort(403);
         }
 

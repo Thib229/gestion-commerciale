@@ -17,8 +17,8 @@ class FactureObserver
         DB::transaction(function () use ($facture) {
             $year = now()->year;
 
-            // Récupérer le dernier numéro de l'année pour cet utilisateur avec lock
-            $last = Facture::where('user_id', $facture->user_id)
+            // Récupérer le dernier numéro de l'année pour cette entreprise avec lock
+            $last = Facture::where('entreprise_id', $facture->entreprise_id)
                 ->whereYear('created_at', $year)
                 ->whereNotNull('numero_facture')
                 ->lockForUpdate()

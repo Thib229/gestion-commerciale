@@ -13,6 +13,7 @@ use App\Http\Controllers\EntrepriseProfileController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\FacturePublicController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\UserManagementController;
 
 // Rate limiting sur les routes de paiement
 RateLimiter::for('payment', function (Request $request) {
@@ -76,6 +77,13 @@ Route::middleware(['auth', 'verified', 'check.subscription'])->group(function ()
 
     /* Logs d'activité (Premium) */
     Route::get('/activite', [ActivityLogController::class, 'index'])->name('activite.index');
+
+    /* Gestion utilisateurs (Premium + Admin) */
+    Route::middleware('premium.multiusers')->group(function () {
+        Route::get('/utilisateurs', [UserManagementController::class, 'index'])->name('users.index');
+        Route::post('/utilisateurs', [UserManagementController::class, 'store'])->name('users.store');
+        Route::delete('/utilisateurs/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
+    });
 });
 
 /*

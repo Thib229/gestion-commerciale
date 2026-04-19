@@ -31,14 +31,17 @@
                     </x-nav-link>
                     @auth
                         @php
-                            $sub = Auth::user()->activeSubscription()->with('plan')->first();
-                            $isPremium = Auth::user()->isOnTrial()
-                                || ($sub && $sub->plan && strtolower($sub->plan->name) === 'premium');
+                            $canAccessPremiumFeatures = Auth::user()->hasPremiumMultiUsersAccess();
                         @endphp
-                        @if($isPremium)
+                        @if($canAccessPremiumFeatures)
                             <x-nav-link :href="route('activite.index')" :active="request()->routeIs('activite.*')">
                                 Activité
                             </x-nav-link>
+                            @if(Auth::user()->isAdmin())
+                                <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                                    Utilisateurs
+                                </x-nav-link>
+                            @endif
                         @endif
                     @endauth
                 </div>
@@ -116,12 +119,13 @@
             <x-responsive-nav-link :href="route('entreprise.edit')" :active="request()->routeIs('entreprise.*')">Profil entreprise</x-responsive-nav-link>
             @auth
                 @php
-                    $subResp = Auth::user()->activeSubscription()->with('plan')->first();
-                    $isPremiumResp = Auth::user()->isOnTrial()
-                        || ($subResp && $subResp->plan && strtolower($subResp->plan->name) === 'premium');
+                    $canAccessPremiumFeaturesResp = Auth::user()->hasPremiumMultiUsersAccess();
                 @endphp
-                @if($isPremiumResp)
+                @if($canAccessPremiumFeaturesResp)
                     <x-responsive-nav-link :href="route('activite.index')" :active="request()->routeIs('activite.*')">Activité</x-responsive-nav-link>
+                    @if(Auth::user()->isAdmin())
+                        <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">Utilisateurs</x-responsive-nav-link>
+                    @endif
                 @endif
             @endauth
         </div>
